@@ -1,0 +1,160 @@
+version: "2.0"
+name: "frontend-multi-agent-orchestration"
+# Análise MAESTRO v2 — baseado em CrewAI Flows, LangGraph State, AutoGen Termination, Swarm Simplicity
+
+profiles:
+  default-fast:
+    mcp_selection:
+      - thinking-patterns
+      - atomic-memory-mcp
+      - shrimp-task-manager
+      - minidoracat-mcp-feedback-enhanced
+  figma-heavy:
+    mcp_selection:
+      - thinking-patterns
+      - atomic-memory-mcp
+      - shrimp-task-manager
+      - TalkToFigma
+      - minidoracat-mcp-feedback-enhanced
+  runtime-validation:
+    mcp_selection:
+      - thinking-patterns
+      - atomic-memory-mcp
+      - shrimp-task-manager
+      - chrome-devtools-mcp
+      - minidoracat-mcp-feedback-enhanced
+  full-audit:
+    mcp_selection:
+      - thinking-patterns
+      - atomic-memory-mcp
+      - shrimp-task-manager
+      - TalkToFigma
+      - chrome-devtools-mcp
+      - minidoracat-mcp-feedback-enhanced
+
+dynamic_mcp_selection:
+  enabled: true
+  strategy: rule-tree
+  rules:
+    - when: "task.type in ['nova-tela', 'design-spec']"
+      use_profile: "figma-heavy"
+    - when: "task.phase in ['validacao', 're-validacao']"
+      use_profile: "runtime-validation"
+    - when: "task.risk in ['high', 'critical']"
+      use_profile: "full-audit"
+    - when: "true"
+      use_profile: "default-fast"
+
+state_machine:
+  initial_state: INTAKE
+  terminal_states: [APPROVED, BLOCKED, CANCELLED]
+  states:
+    INTAKE: [CONTEXT_LOAD, BLOCKED]
+    CONTEXT_LOAD: [PLANNING, BLOCKED]
+    PLANNING: [FIGMA_ANALYSIS, IMPLEMENTATION, BLOCKED]
+    FIGMA_ANALYSIS: [IMPLEMENTATION, BLOCKED]
+    IMPLEMENTATION: [VALIDATION_PARALLEL, BLOCKED]
+    VALIDATION_PARALLEL: [DECISION_GATE, SMART_ESCALATION, BLOCKED]
+    DECISION_GATE: [APPROVED, REWORK, SMART_ESCALATION]
+    REWORK: [IMPLEMENTATION, SMART_ESCALATION, BLOCKED]
+    SMART_ESCALATION: [IMPLEMENTATION, BLOCKED, CANCELLED]
+
+validation_decision_tree:
+  - if: "browser.critical_count > 0 || tech_lead.critical_count > 0"
+    next: REWORK_FRONTEND
+  - if: "browser.medium_count > 0 || tech_lead.medium_count > 0"
+    next: REWORK_OPTIONAL_GATE
+  - if: "timeout.any == true"
+    next: SMART_ESCALATION
+  - if: "true"
+    next: APPROVED
+
+iteration_tracking:
+  enabled: true
+  max_global_iterations: 4
+  max_validation_retries_per_cycle: 2
+  loop_safety:
+    max_handoffs_per_cycle: 12
+    max_turns_per_agent_call: 8
+    on_limit_reached: SMART_ESCALATION
+  metrics:
+    - critical_bugs
+    - medium_bugs
+    - test_pass_rate
+    - a11y_score
+    - duration_ms
+  regression_rules:
+    - condition: "critical_bugs > previous.critical_bugs"
+      action: "ESCALATE"
+    - condition: "test_pass_rate < previous.test_pass_rate - 5"
+      action: "ESCALATE"
+    - condition: "a11y_score < previous.a11y_score - 8"
+      action: "ESCALATE"
+
+context_isolation:
+  handoff_contract:
+    required_fields:
+      - trace_id
+      - task_id
+      - objective
+      - input_artifacts
+      - acceptance_criteria
+      - constraints
+      - output_schema
+    max_context_chars: 6000
+    redact_fields:
+      - secrets
+      - unrelated_history
+      - raw_chain_of_thought
+  shared_state_policy:
+    mode: typed
+    required_keys:
+      - trace_id
+      - task_id
+      - objective
+      - acceptance_criteria
+    on_rework:
+      reset_transient_messages: true
+      preserve_decision_artifacts: true
+
+observability:
+  schema_version: "1.1"
+  trace_id_format: "task-{date}-{random}"
+  span_id_format: "{agent}-{step}-{random}"
+  propagate_to_subagents: true
+  events:
+    - state_transition
+    - handoff_sent
+    - handoff_done
+    - quality_gate
+    - escalation_triggered
+
+decentralized_fallback:
+  enabled: true
+  fallback_order:
+    - "3. Frontend"
+    - "5. Tech Lead Validator"
+    - "4. Browser Validator"
+
+durability:
+  enabled: true
+  checkpoint_on_states:
+    - PLANNING
+    - IMPLEMENTATION
+    - VALIDATION_PARALLEL
+    - DECISION_GATE
+  resume_strategy: last_consistent_checkpoint
+  on_recovery:
+    emit_event: state_transition
+    next_state: IMPLEMENTATION
+
+smart_escalation:
+  triggers:
+    - orchestrator_unavailable
+    - validation_timeout
+    - regression_detected
+    - iteration_limit_reached
+  actions:
+    - assign_temporary_lead_agent
+    - reduce_scope_to_blockers
+    - request_human_decision_if_risk_critical

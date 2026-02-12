@@ -1,0 +1,42 @@
+{
+  "servers": {
+    "thinking-patterns": {
+      "command": "npx",
+      "args": ["-y", "@emmahyde/thinking-patterns"]
+    },
+    "atomic-memory-mcp": {
+      "command": "npx",
+      "args": ["-y", "server-memory-enhanced"],
+      "env": {
+        "WARM_LOAD_ON_STARTUP": "true",
+        "PRELOAD_CATEGORIES": "project-level,pipeline-level,agent-policy,qa-rules",
+        "CACHE_TTL_SECONDS": "3600"
+      }
+    },
+    "shrimp-task-manager": {
+      "command": "npx",
+      "args": ["-y", "mcp-shrimp-task-manager"],
+      "env": {
+        "DATA_DIR": "/mcp-shrimp-task-manager/data",
+        "TEMPLATES_USE": "pt-br",
+        "ENABLE_GUI": "true",
+        "ENABLE_STATE_MACHINE": "true",
+        "MAX_ITERATIONS_PER_TASK": "5",
+        "ENABLE_REGRESSION_DETECTION": "true",
+        "ENABLE_PARALLEL_EXECUTION": "true"
+      }
+    },
+    "TalkToFigma": {
+      "command": "npx",
+      "args": ["ai-figma-mcp@latest"]
+    },
+    "minidoracat-mcp-feedback-enhanced": {
+      "command": "uvx",
+      "args": ["mcp-feedback-enhanced@latest"]
+    },
+    "chrome-devtools-mcp": {
+      "command": "npx",
+      "args": ["chrome-devtools-mcp@latest"]
+    }
+  }
+}

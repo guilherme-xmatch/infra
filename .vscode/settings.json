@@ -1,0 +1,5 @@
+{
+  "chat.customAgentInSubagent.enabled": true,
+  "chat.customAgent.advanced.maxTools": 128,
+  "chat.customAgent.advanced.contextWindow": 16000
+}

@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "echo \"$(date -Iseconds) | SESSION_START | source=$(echo $INPUT | jq -r '.source')\" >> .github/hooks/logs/session.log",
+        "powershell": "$input = [Console]::In.ReadToEnd() | ConvertFrom-Json; Add-Content -Path .github/hooks/logs/session.log -Value \"$(Get-Date -Format o) | SESSION_START | source=$($input.source)\"",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "echo \"$(date -Iseconds) | SESSION_END | reason=$(echo $INPUT | jq -r '.reason')\" >> .github/hooks/logs/session.log",
+        "powershell": "$input = [Console]::In.ReadToEnd() | ConvertFrom-Json; Add-Content -Path .github/hooks/logs/session.log -Value \"$(Get-Date -Format o) | SESSION_END | reason=$($input.reason)\"",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "./scripts/pre-tool-guard.sh",
+        "powershell": "./scripts/pre-tool-guard.ps1",
+        "cwd": ".github/hooks",
+        "timeoutSec": 15
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "INPUT=$(cat); echo \"$(date -Iseconds) | TOOL_DONE | tool=$(echo $INPUT | jq -r '.toolName') | result=$(echo $INPUT | jq -r '.toolResult.resultType')\" >> .github/hooks/logs/tools.log",
+        "powershell": "$input = [Console]::In.ReadToEnd() | ConvertFrom-Json; Add-Content -Path .github/hooks/logs/tools.log -Value \"$(Get-Date -Format o) | TOOL_DONE | tool=$($input.toolName) | result=$($input.toolResult.resultType)\"",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "errorOccurred": [
+      {
+        "type": "command",
+        "bash": "INPUT=$(cat); echo \"$(date -Iseconds) | ERROR | name=$(echo $INPUT | jq -r '.error.name') | msg=$(echo $INPUT | jq -r '.error.message')\" >> .github/hooks/logs/errors.log",
+        "powershell": "$input = [Console]::In.ReadToEnd() | ConvertFrom-Json; Add-Content -Path .github/hooks/logs/errors.log -Value \"$(Get-Date -Format o) | ERROR | name=$($input.error.name) | msg=$($input.error.message)\"",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
